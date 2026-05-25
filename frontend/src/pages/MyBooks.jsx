@@ -7,7 +7,9 @@ const MyBooks = () => {
   const { issues, isLoading } = useSelector((state) => state.issues);
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-
+  const pendingFine = issues?.reduce((total, issue) => {
+    return total + (issue.fine > 0 && !issue.finePaid ? issue.fine : 0);
+  }, 0) || 0;
   useEffect(() => {
     dispatch(fetchMyIssues());
   }, [dispatch]);
@@ -31,11 +33,20 @@ const MyBooks = () => {
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">My Borrowed Books</h1>
-        <span className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm">
-          Total: {filteredIssues?.length || 0}
-        </span>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">My Borrowed Books</h1>
+          <p className="text-gray-500 mt-1">Track your borrowed books, due dates, and any pending fines.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <span className="bg-white border border-blue-200 text-blue-700 px-4 py-2 rounded-lg shadow-sm">
+            Total: {filteredIssues?.length || 0}
+          </span>
+          <span className="bg-white border border-red-200 text-red-700 px-4 py-2 rounded-lg shadow-sm">
+            Pending Fine: Rs.{pendingFine}
+          </span>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -98,6 +109,7 @@ const MyBooks = () => {
                 <th className="p-4 font-bold text-gray-700">Book</th>
                 <th className="p-4 font-bold text-gray-700">Issue Date</th>
                 <th className="p-4 font-bold text-gray-700">Due Date</th>
+                <th className="p-4 font-bold text-gray-700">Fine</th>
                 <th className="p-4 font-bold text-gray-700">Status</th>
                 <th className="p-4 font-bold text-gray-700">Action</th>
               </tr>
@@ -123,6 +135,15 @@ const MyBooks = () => {
                   </td>
                   <td className="p-4 text-gray-600">
                     {new Date(issue.dueDate).toLocaleDateString()}
+                  </td>
+                  <td className="p-4 text-red-600 font-semibold">
+                    Rs.{issue.fine || 0}
+                    {issue.fine > 0 && !issue.finePaid && (
+                      <div className="text-xs text-red-500 mt-1">Pending</div>
+                    )}
+                    {issue.finePaid && issue.fine > 0 && (
+                      <div className="text-xs text-green-600 mt-1">Paid</div>
+                    )}
                   </td>
                   <td className="p-4">
                     <span

@@ -4,6 +4,8 @@ import {
   issueBookAction,
   fetchMyIssues,
   returnBookAction,
+  payFineAction,
+  deleteIssueAction,
   fetchAllIssues,
 } from "./issueActions.jsx";
 
@@ -119,6 +121,55 @@ const issueSlice = createSlice({
       })
 
       .addCase(returnBookAction.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      /*
+      =========================
+      PAY FINE
+      =========================
+      */
+      .addCase(payFineAction.pending, (state) => {
+        state.isLoading = true;
+      })
+
+      .addCase(payFineAction.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+
+        const index = state.issues.findIndex(
+          (issue) => issue._id === action.payload._id
+        );
+
+        if (index !== -1) {
+          state.issues[index] = action.payload;
+        }
+      })
+
+      .addCase(payFineAction.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      /*
+      =========================
+      DELETE ISSUE
+      =========================
+      */
+      .addCase(deleteIssueAction.pending, (state) => {
+        state.isLoading = true;
+      })
+
+      .addCase(deleteIssueAction.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.issues = state.issues.filter((issue) => issue._id !== action.payload);
+      })
+
+      .addCase(deleteIssueAction.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

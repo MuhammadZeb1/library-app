@@ -6,12 +6,12 @@ TRANSPORTER
 =============================
 */
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // 👈 IMPORTANT (SSL)
+  host: process.env.EMAIL_HOST || "smtp.gmail.com",
+  port: Number(process.env.EMAIL_PORT) || 465,
+  secure: process.env.EMAIL_SECURE ? process.env.EMAIL_SECURE === "true" : true,
   auth: {
-    user: "atieeq82@gmail.com",
-    pass: "bmbfbdkpqfdcbchg",
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -36,7 +36,7 @@ SEND EMAIL FUNCTION
 const sendEmail = async ({ to, subject, text }) => {
   try {
     await transporter.sendMail({
-      from: `"Library App" <atieeq82@gmail.com>`,
+      from: `"Library App" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       text,

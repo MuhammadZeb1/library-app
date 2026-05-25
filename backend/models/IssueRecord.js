@@ -19,7 +19,10 @@ const issueRecordSchema = new mongoose.Schema({
     enum: ['Issued', 'Returned'], 
     default: 'Issued' 
   },
-  fine: { type: Number, default: 0 }
+  fine: { type: Number, default: 0 },
+  finePaid: { type: Boolean, default: false },
+  paidAmount: { type: Number, default: 0 },
+  paidAt: { type: Date }
 }, { timestamps: true });
 
 const IssueRecord = mongoose.model('IssueRecord', issueRecordSchema);

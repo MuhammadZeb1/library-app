@@ -6,6 +6,7 @@ import {
   fetchBooks,
   deleteBook,
 } from "../features/books/bookActions.jsx";
+import { fetchAllIssues } from "../features/issues/issueActions.jsx";
 
 import { resetBookState } from "../features/books/bookSlice.jsx";
 
@@ -17,6 +18,7 @@ const AdminDashboard = () => {
   const { books, isLoading, isError, message } = useSelector(
     (state) => state.books
   );
+  const { issues } = useSelector((state) => state.issues);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -24,6 +26,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     dispatch(fetchBooks());
+    dispatch(fetchAllIssues());
 
     return () => dispatch(resetBookState());
   }, [dispatch]);
@@ -108,10 +111,10 @@ const AdminDashboard = () => {
           />
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
             <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-blue-500">
               <h3 className="text-gray-500 text-sm font-medium">
-                Total Books
+                Total Titles
               </h3>
 
               <p className="text-3xl font-bold text-gray-800 mt-2">
@@ -125,23 +128,30 @@ const AdminDashboard = () => {
               </h3>
 
               <p className="text-3xl font-bold text-green-600 mt-2">
-                {filteredBooks.reduce(
-                  (acc, book) => acc + book.available,
-                  0
-                )}
+                {filteredBooks.reduce((acc, book) => acc + book.available, 0)}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-red-500">
+            <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-orange-500">
               <h3 className="text-gray-500 text-sm font-medium">
-                Out of Stock
+                Currently Issued
               </h3>
 
-              <p className="text-3xl font-bold text-red-500 mt-2">
-                {
-                  filteredBooks.filter((book) => book.available === 0)
-                    .length
-                }
+              <p className="text-3xl font-bold text-orange-600 mt-2">
+                {issues?.filter((issue) => issue.status === "Issued").length || 0}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-purple-500">
+              <h3 className="text-gray-500 text-sm font-medium">
+                Total Fine Collected
+              </h3>
+
+              <p className="text-3xl font-bold text-purple-600 mt-2">
+                Rs.{issues?.reduce(
+                  (acc, issue) => acc + (issue.finePaid ? issue.paidAmount : 0),
+                  0
+                ) || 0}
               </p>
             </div>
           </div>

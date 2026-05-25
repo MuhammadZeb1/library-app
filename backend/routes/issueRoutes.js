@@ -5,10 +5,13 @@ import {
   returnBook,
   getAllIssueRecords,
   getMyIssueRecords,
+  payFine,
+  deleteIssue,
 } from "../controllers/issueController.js";
 
 import {
   protect,
+  adminOnly,
 } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -32,6 +35,12 @@ router.get(
 // Return book
 router.put("/:id/return", protect, returnBook);
 
+// Admin can mark a fine as paid
+router.put("/:id/pay-fine", protect, adminOnly, payFine);
+
+// Admin can delete an issue record
+router.delete("/:id", protect, adminOnly, deleteIssue);
+
 /*
 ====================================
 ADMIN ROUTES
@@ -42,6 +51,7 @@ ADMIN ROUTES
 router.get(
   "/all",
   protect,
+  adminOnly,
   getAllIssueRecords
 );
 

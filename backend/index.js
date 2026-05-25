@@ -7,8 +7,9 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
 import issueRoutes from "./routes/issueRoutes.js";
-
+import IssueRecord from "./models/IssueRecord.js";
 import sendEmail from "./utils/sendEmail.js"; // ✅ ADD THIS
+import cron from "node-cron";
 
 
 console.log("EMAIL_USER:", process.env.EMAIL_USER);
@@ -54,6 +55,37 @@ ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/issues", issueRoutes);
+
+cron.schedule("0 9 * * *", async () => {
+  try {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0));
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999));
+
+    const records = await IssueRecord.find({
+      status: "Issued",
+      dueDate: {
+        $gte: startOfTomorrow,
+        $lte: endOfTomorrow,
+      },
+    }).populate("student", "name email").populate("book", "title");
+
+    for (const record of records) {
+      await sendEmail({
+        to: record.student.email,
+        subject: "Reminder: Book due tomorrow",
+        text: `Hello ${record.student.name},\n\nYour borrowed book "${record.book.title}" is due tomorrow (${new Date(record.dueDate).toLocaleDateString()}).\nPlease return it on time to avoid fines.\n\nLibrary Management System`,
+      });
+    }
+
+    if (records.length > 0) {
+      console.log(`Sent ${records.length} due-date reminder emails.`);
+    }
+  } catch (error) {
+    console.log("Due-date reminder error:", error.message);
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 

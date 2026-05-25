@@ -100,6 +100,36 @@ export const returnBookAction = createAsyncThunk(
   }
 );
 
+// ADMIN - PAY FINE
+export const payFineAction = createAsyncThunk(
+  "issues/payFine",
+  async (issueId, thunkAPI) => {
+    try {
+      const { data } = await API.put(`/issues/${issueId}/pay-fine`);
+      return data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
+// ADMIN - DELETE ISSUE
+export const deleteIssueAction = createAsyncThunk(
+  "issues/delete",
+  async (issueId, thunkAPI) => {
+    try {
+      await API.delete(`/issues/${issueId}`);
+      return issueId;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
+    }
+  }
+);
+
 // ADMIN - GET ALL ISSUES
 export const fetchAllIssues = createAsyncThunk(
   "issues/fetchAll",

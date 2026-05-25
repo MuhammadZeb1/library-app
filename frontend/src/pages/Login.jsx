@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../features/auth/authActions.jsx'; // register comes from here
-import { reset } from '../features/auth/authSlice.jsx';     // reset comes from here
+import { login } from '../features/auth/authActions.jsx';
+import { reset } from '../features/auth/authSlice.jsx';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -26,21 +26,57 @@ const Login = () => {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <form onSubmit={onSubmit} className="bg-white p-8 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-6 text-center">Library Login</h2>
-        {isError && <p className="text-red-500 mb-4 text-sm">{message}</p>}
-        
-        <input name="email" type="email" placeholder="Email" onChange={onChange} className="w-full p-2 mb-4 border rounded" required />
-        <input name="password" type="password" placeholder="Password" onChange={onChange} className="w-full p-2 mb-6 border rounded" required />
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-12">
+      <div className="w-full max-w-md rounded-[32px] bg-white p-10 shadow-2xl shadow-slate-200">
+        <div className="mb-8 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">Welcome back</p>
+          <h1 className="mt-3 text-3xl font-semibold text-slate-900">Sign in to your library account</h1>
+          <p className="mt-2 text-sm text-slate-500">Access your issued books, dashboards, and fine status instantly.</p>
+        </div>
 
-        <button type="submit" disabled={isLoading} className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700">
-          {isLoading ? 'Logging in...' : 'Login'}
-        </button>
-        <p className="mt-4 text-sm text-center">
-          New here? <Link to="/register" className="text-blue-600">Register</Link>
+        {isError && <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">{message}</div>}
+
+        <form onSubmit={onSubmit} className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
+            <input
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              onChange={onChange}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+            <input
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              onChange={onChange}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {isLoading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-slate-500">
+          New to the library?{' '}
+          <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+            Create an account
+          </Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 };

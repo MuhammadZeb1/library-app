@@ -5,7 +5,7 @@ const slides = [
   {
     id: 1,
     title: 'Discover Your Next Favorite Book',
-    description: 'Explore a vast collection of genres, authors, and stories. Your literary adventure begins here.',
+    description: 'Explore a curated library of titles, issued books, and personalized student workflows.',
     image: 'https://images.unsplash.com/photo-1521587765099-8835e7201186?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     link: '/books',
     linkText: 'Browse Books',
@@ -13,7 +13,7 @@ const slides = [
   {
     id: 2,
     title: 'Seamless Library Management',
-    description: 'For administrators, manage inventory, track issues, and oversee fines with intuitive tools.',
+    description: 'Issue books, manage inventory, and collect fines with a clean admin console.',
     image: 'https://images.unsplash.com/photo-1507842217343-583fd0462b34?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     link: '/admin-dashboard',
     linkText: 'Admin Dashboard',
@@ -21,7 +21,7 @@ const slides = [
   {
     id: 3,
     title: 'Your Personal Reading Journey',
-    description: 'Students can easily check out books, view due dates, and manage their reading list.',
+    description: 'Students can track due dates, view borrowed books, and avoid late fees with ease.',
     image: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a724?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     link: '/student-dashboard',
     linkText: 'Student Dashboard',
@@ -34,30 +34,28 @@ const HeroSlider = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prevSlide) => (prevSlide + 1) % slides.length);
-    }, 5000); // Change slide every 5 seconds
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
-  };
-
   return (
-    <div className="relative w-full h-[600px] overflow-hidden">
+    <section className="relative w-full overflow-hidden bg-slate-950 text-white">
       {slides.map((slide, index) => (
         <div
           key={slide.id}
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out
-            ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
-          style={{ backgroundImage: `url(${slide.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+          style={{ backgroundImage: `linear-gradient(rgba(15,23,42,0.65), rgba(15,23,42,0.65)), url(${slide.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         >
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="text-white text-center p-8 max-w-3xl">
-              <h2 className="text-5xl font-bold mb-4">{slide.title}</h2>
-              <p className="text-xl mb-8">{slide.description}</p>
+          <div className="flex min-h-[640px] items-center justify-center px-6 py-24">
+            <div className="max-w-3xl text-center">
+              <span className="inline-flex rounded-full bg-blue-500/20 px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-blue-200 shadow-sm">
+                Library Management
+              </span>
+              <h1 className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">{slide.title}</h1>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-200">{slide.description}</p>
               <Link
                 to={slide.link}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300"
+                className="mt-10 inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-2xl shadow-blue-500/30 transition hover:bg-blue-700"
               >
                 {slide.linkText}
               </Link>
@@ -66,17 +64,16 @@ const HeroSlider = () => {
         </div>
       ))}
 
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2">
+      <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 gap-3">
         {slides.map((_, index) => (
           <button
             key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full bg-white transition-all duration-300
-              ${index === currentSlide ? 'w-8 bg-blue-500' : 'bg-opacity-50'}`}
-          ></button>
+            onClick={() => setCurrentSlide(index)}
+            className={`h-3 rounded-full transition-all ${index === currentSlide ? 'w-10 bg-blue-600' : 'w-3 bg-white/50 hover:w-6 hover:bg-white'}`}
+          />
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 

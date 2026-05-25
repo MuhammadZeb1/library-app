@@ -1,463 +1,236 @@
 import IssueRecord from "../models/IssueRecord.js";
 import Book from "../models/Book.js";
-import nodemailer from "nodemailer";
+import sendEmail from "../utils/sendEmail.js";
 
-/*
-========================================
-EMAIL TRANSPORTER
-========================================
-*/
+const FINE_RATE = 10;
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const calculateFine = (dueDate, compareDate = new Date()) => {
+  const delay = (new Date(compareDate) - new Date(dueDate)) / (1000 * 60 * 60 * 24);
+  const overdueDays = Math.ceil(delay);
+  return overdueDays > 0 ? overdueDays * FINE_RATE : 0;
+};
 
-/*
-========================================
-SEND EMAIL FUNCTION
-========================================
-*/
+const sendIssueConfirmationEmail = async (student, bookTitle, dueDate) => {
+  await sendEmail({
+    to: student.email,
+    subject: "Book Issued Successfully",
+    text: `Hello ${student.name},
 
-const sendEmail = async ({
-  to,
-  subject,
-  text,
-}) => {
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
+Your book "${bookTitle}" has been issued successfully.
+Due Date: ${new Date(dueDate).toLocaleDateString()}.
+
+Please return the book on time to avoid any fines.
+
+Library Management System`,
+  });
+};
+
+const sendReturnEmail = async (student, bookTitle, fineAmount) => {
+  const text = fineAmount > 0
+    ? `Hello ${student.name},
+
+You have returned the book "${bookTitle}".
+Your overdue fine is Rs.${fineAmount}.
+Please contact the admin to settle the payment.
+
+Library Management System`
+    : `Hello ${student.name},
+
+Thank you for returning the book "${bookTitle}" on time.
+No fine is due.
+
+Library Management System`;
+
+  await sendEmail({
+    to: student.email,
+    subject: "Book Return Confirmation",
     text,
   });
 };
 
-/*
-========================================
-ISSUE BOOK
-POST /api/issues
-========================================
-*/
-
 export const issueBook = async (req, res) => {
   try {
     const studentId = req.user._id;
+    const { bookId, dueDate } = req.body;
 
-    const {
-      bookId,
-      dueDate,
-    } = req.body;
+    const book = await Book.findById(bookId);
 
-    const book = await Book.findById(
-      bookId
-    );
-
-    if (
-      !book ||
-      book.available < 1
-    ) {
-      return res.status(400).json({
-        message:
-          "Book not available",
-      });
+    if (!book || book.available < 1) {
+      return res.status(400).json({ message: "Book not available" });
     }
 
-    const alreadyIssued =
-      await IssueRecord.findOne({
-        student: studentId,
-        book: bookId,
-        status: "Issued",
-      });
+    const alreadyIssued = await IssueRecord.findOne({
+      student: studentId,
+      book: bookId,
+      status: "Issued",
+    });
 
     if (alreadyIssued) {
-      return res.status(400).json({
-        message:
-          "Already borrowed",
-      });
+      return res.status(400).json({ message: "You already have this book issued" });
     }
 
-    const issue =
-      await IssueRecord.create({
-        student: studentId,
-        book: bookId,
-        dueDate,
-      });
+    const issue = await IssueRecord.create({
+      student: studentId,
+      book: bookId,
+      dueDate,
+    });
 
-    // decrease stock
     book.available -= 1;
-
     await book.save();
 
+    await sendIssueConfirmationEmail(req.user, book.title, dueDate);
+
     res.status(201).json(issue);
-
   } catch (error) {
-    console.log(
-      "ISSUE ERROR:",
-      error
-    );
-
-    res.status(500).json({
-      message: error.message,
-    });
+    console.log("ISSUE ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
-/*
-========================================
-RETURN BOOK
-PUT /api/issues/:id/return
-========================================
-*/
-
-export const returnBook = async (
-  req,
-  res
-) => {
+export const returnBook = async (req, res) => {
   try {
+    const issue = await IssueRecord.findById(req.params.id)
+      .populate("student", "name email")
+      .populate("book", "title");
 
-    const issue =
-      await IssueRecord.findById(
-        req.params.id
-      )
-        .populate(
-          "student",
-          "name email"
-        )
-        .populate(
-          "book",
-          "title"
-        );
-
-    if (
-      !issue ||
-      issue.status ===
-        "Returned"
-    ) {
-      return res.status(400).json({
-        message:
-          "Invalid record or already returned",
-      });
+    if (!issue || issue.status === "Returned") {
+      return res.status(400).json({ message: "Invalid record or already returned" });
     }
 
-    // return date
-    issue.returnDate =
-      new Date();
-
+    issue.returnDate = new Date();
     issue.status = "Returned";
-
-    /*
-    ============================
-    FINE LOGIC
-    ============================
-    */
-
-    const delay =
-      (new Date(
-        issue.returnDate
-      ) -
-        new Date(
-          issue.dueDate
-        )) /
-      (1000 *
-        60 *
-        60 *
-        24);
-
-    const lateDays =
-      Math.ceil(delay);
-
-    issue.fine =
-      lateDays > 0
-        ? lateDays * 10
-        : 0;
+    issue.fine = calculateFine(issue.dueDate, issue.returnDate);
+    issue.finePaid = issue.fine === 0;
+    issue.paidAmount = 0;
+    issue.paidAt = issue.fine === 0 ? new Date() : undefined;
 
     await issue.save();
 
-    /*
-    ============================
-    INCREASE BOOK STOCK
-    ============================
-    */
-
-    const book =
-      await Book.findById(
-        issue.book._id
-      );
-
+    const book = await Book.findById(issue.book._id);
     if (book) {
       book.available += 1;
-
       await book.save();
     }
 
-    /*
-    ============================
-    LATE RETURN EMAIL
-    ============================
-    */
-
-    if (issue.fine > 0) {
-
-      await sendEmail({
-        to:
-          issue.student.email,
-
-        subject:
-          "Library Fine Alert",
-
-        text: `
-Hello ${issue.student.name},
-
-You returned the book "${issue.book.title}" late.
-
-Late Fine: Rs.${issue.fine}
-
-Please pay the fine.
-
-Library Management System
-        `,
-      });
-
-      console.log(
-        "Fine email sent"
-      );
-    }
+    await sendReturnEmail(issue.student, issue.book.title, issue.fine);
 
     res.json(issue);
-
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/*
-========================================
-ADMIN - GET ALL ISSUE RECORDS
-GET /api/issues/all
-========================================
-*/
+export const payFine = async (req, res) => {
+  try {
+    const issue = await IssueRecord.findById(req.params.id)
+      .populate("student", "name email")
+      .populate("book", "title");
 
-export const getAllIssueRecords =
-  async (req, res) => {
-    try {
-
-      const records =
-        await IssueRecord.find({})
-          .populate(
-            "student",
-            "name email"
-          )
-          .populate(
-            "book",
-            "title author category image"
-          )
-          .sort({
-            createdAt: -1,
-          });
-
-      /*
-      ============================
-      LIVE FINE CALCULATION
-      ============================
-      */
-
-      const updatedRecords =
-        records.map(
-          (record) => {
-
-            // returned books
-            if (
-              record.status ===
-              "Returned"
-            ) {
-              return record;
-            }
-
-            const today =
-              new Date();
-
-            const delay =
-              (today -
-                new Date(
-                  record.dueDate
-                )) /
-              (1000 *
-                60 *
-                60 *
-                24);
-
-            const lateDays =
-              Math.ceil(delay);
-
-            const liveFine =
-              lateDays > 0
-                ? lateDays * 10
-                : 0;
-
-            return {
-              ...record.toObject(),
-
-              fine: liveFine,
-            };
-          }
-        );
-
-      res.json(updatedRecords);
-
-    } catch (error) {
-
-      res.status(500).json({
-        message:
-          error.message,
-      });
+    if (!issue) {
+      return res.status(404).json({ message: "Issue record not found" });
     }
-  };
 
-/*
-========================================
-STUDENT - GET MY ISSUE RECORDS
-GET /api/issues/my-records
-========================================
-*/
+    if (issue.fine <= 0 || issue.finePaid) {
+      return res.status(400).json({ message: "No pending fine found for this record" });
+    }
 
-export const getMyIssueRecords =
-  async (req, res) => {
-    try {
+    issue.finePaid = true;
+    issue.paidAmount = issue.fine;
+    issue.paidAt = new Date();
 
-      const records =
-        await IssueRecord.find({
-          student:
-            req.user._id,
-        })
-          .populate(
-            "book",
-            "title author category image"
-          )
-          .sort({
-            createdAt: -1,
-          });
+    await issue.save();
 
-      /*
-      ============================
-      LIVE FINE FOR STUDENT
-      ============================
-      */
+    await sendEmail({
+      to: issue.student.email,
+      subject: "Fine Payment Recorded",
+      text: `Hello ${issue.student.name},
 
-      const updatedRecords =
-        records.map(
-          (record) => {
+Your fine payment for "${issue.book.title}" has been recorded.
+Paid Amount: Rs.${issue.paidAmount}.
 
-            if (
-              record.status ===
-              "Returned"
-            ) {
-              return record;
-            }
+Thank you.
 
-            const today =
-              new Date();
+Library Management System`,
+    });
 
-            const delay =
-              (today -
-                new Date(
-                  record.dueDate
-                )) /
-              (1000 *
-                60 *
-                60 *
-                24);
+    res.json(issue);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
-            const lateDays =
-              Math.ceil(delay);
+export const deleteIssue = async (req, res) => {
+  try {
+    const issue = await IssueRecord.findById(req.params.id).populate("book", "_id title");
 
-            const liveFine =
-              lateDays > 0
-                ? lateDays * 10
-                : 0;
+    if (!issue) {
+      return res.status(404).json({ message: "Issue record not found" });
+    }
 
-            return {
-              ...record.toObject(),
+    if (issue.status === "Issued" && issue.book) {
+      const book = await Book.findById(issue.book._id);
+      if (book) {
+        book.available += 1;
+        await book.save();
+      }
+    }
 
-              fine: liveFine,
-            };
-          }
-        );
+    await issue.deleteOne();
 
-      /*
-      ============================
-      EMAIL REMINDER
-      BEFORE DUE DATE
-      ============================
-      */
+    res.json({ id: req.params.id, message: "Issue record deleted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
-      for (const issue of records) {
+export const getAllIssueRecords = async (req, res) => {
+  try {
+    const records = await IssueRecord.find({})
+      .populate("student", "name email")
+      .populate("book", "title author category image")
+      .sort({ createdAt: -1 });
 
-        if (
-          issue.status ===
-          "Issued"
-        ) {
-
-          const today =
-            new Date();
-
-          const remainingDays =
-            (new Date(
-              issue.dueDate
-            ) -
-              today) /
-            (1000 *
-              60 *
-              60 *
-              24);
-
-          const daysLeft =
-            Math.ceil(
-              remainingDays
-            );
-
-          // 1 day before due
-          if (daysLeft === 1) {
-
-            await sendEmail({
-              to:
-                req.user.email,
-
-              subject:
-                "Book Due Tomorrow",
-
-              text: `
-Hello ${req.user.name},
-
-Reminder:
-Your borrowed book is due tomorrow.
-
-Please return it on time to avoid fines.
-
-Library Management System
-              `,
-            });
-
-            console.log(
-              "Reminder email sent"
-            );
-          }
-        }
+    const updatedRecords = records.map((record) => {
+      if (record.status === "Returned" || record.finePaid) {
+        return record;
       }
 
-      res.json(updatedRecords);
+      const liveFine = calculateFine(record.dueDate);
+      return {
+        ...record.toObject(),
+        fine: liveFine,
+      };
+    });
 
-    } catch (error) {
+    res.json(updatedRecords);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-      res.status(500).json({
-        message:
-          error.message,
-      });
-    }
-  };
+export const getMyIssueRecords = async (req, res) => {
+  try {
+    const records = await IssueRecord.find({ student: req.user._id })
+      .populate("book", "title author category image")
+      .sort({ createdAt: -1 });
+
+    const updatedRecords = records.map((record) => {
+      if (record.status === "Returned" || record.finePaid) {
+        return record;
+      }
+
+      const liveFine = calculateFine(record.dueDate);
+      return {
+        ...record.toObject(),
+        fine: liveFine,
+      };
+    });
+
+    res.json(updatedRecords);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
